@@ -49,6 +49,7 @@ function Set-ProjectFolder {
     Overides the default base directory to creates D:\WorkDir\ and changes to that directory
 
     #>
+    [CmdletBinding()]
     param (
         [string]$baseDir = "$env:SystemDrive\WorkDir",
         [string]$taskDir,
@@ -88,7 +89,7 @@ function Set-ProjectFolder {
     }
 }
 
-# Function to get the domain name
+#Function to get the domain name
 function Get-DomainName {
     <#
     .SYNOPSIS
@@ -151,22 +152,125 @@ function Get-DHCPLogInfo {
     }
 }
 
+#Function to purge entry from DNS
+Function Purge-DNSEntries{
+    <#
+    .SYNOPSIS
+	Purge DNS of stale entries
+	
+	.DESCRIPTION
+	Finds all DNS Zones. Then searches for all entries that contain the string provided and purges them.  This searches this searches Hostname and Data fields. It also removes all name servers with the string in the name.
+	
+	.PARAMETER PurgeThis
+	
+	
+	.EXAMPLE
+    Purge-DNSEntries -PurgeThis "DC-01"
+    Finds and removes all entries containing DC-01
+	
+    #>
+    [CmdletBinding()]
+    Param
+	(
+		[parameter(ValueFromPipeline=$True)]
+		[String]$PurgeThis
+	)
 
-function Function-1 {
-    Write-Output "Function 1 called"
+    PROCESS
+    {
+        $DNSZones = Get-dnsServerZone
+
+        ForEach ($Zone in $DNSZones)
+        {
+            $records = Get-DnsServerResourceRecord -ZoneName $Zone.ZoneName | Where-Object {
+            $_.HostName -match "$PurgeThis" -or
+            $_.RecordData.PtrDomainName -match "$PurgeThis" -or
+            $_.RecordData.NameServer -match "$PurgeThis"
+            }
+
+            foreach ($record in $records) {
+                    # Remove the resource record
+                    Remove-DnsServerResourceRecord -ZoneName $zone.ZoneName -InputObject $record -Force
+                    Write-Host "Removed record with Hostname: $($record.hostname) and Data: $($record.RecordData.NameServer) from zone: $($zone.ZoneName)"
+                } 
+        }
+
+        Write-Host "Completed removal of all instances of $PurgeThis."
+    }
 }
 
-function Function-2 {
-    Write-Output "Function 2 called"
+#Function to Scan network range
+function Scan-NetworkRange {
+
+    <#
+    .SYNOPSIS
+	Scan a range of IP addresses for active IPs
+	
+	.DESCRIPTION
+	Scan a range of IP addresses for active IPs
+	
+	.PARAMETER StartRange
+    .PARAMETER EndRange
+	.PARAMETER OnlyActive
+    
+	.EXAMPLE
+    Scan-NetworkRange -StartRange "192.168.1.21" -EndRange "192.168.1.100"
+    This will output active and inactive IPs within the range 192.168.1.21-100.
+
+    .EXAMPLE
+    Scan-NetworkRange -StartRange "10.1.1.1" -EndRange "10.20.255.255" -OnlyActive
+    This will output only the active IPs within the absolutely massive range 10.1-20.1-255.1-255
+    #>
+    
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$StartRange,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$EndRange,
+
+        [switch]$OnlyActive=$false
+    )
+
+    # Convert the IP range to a sequence of numbers
+    $startIP = $StartRange.Split('.').ForEach({ [int]$_ })
+    $endIP = $EndRange.Split('.').ForEach({ [int]$_ })
+    
+    # Loop through each segment of the IP address
+    for ($a = $startIP[0]; $a -le $endIP[0]; $a++) {
+        for ($b = $startIP[1]; $b -le $endIP[1]; $b++) {
+            for ($c = $startIP[2]; $c -le $endIP[2]; $c++) {
+                for ($d = $startIP[3]; $d -le $endIP[3]; $d++) {
+                    $currentIP = "$a.$b.$c.$d"
+                    $ping = Test-Connection -ComputerName $currentIP -Count 1 -Quiet
+                    if ($ping) {
+                        try {
+                            $hostEntry = [System.Net.Dns]::GetHostEntry($currentIP)
+                            $hostname = $hostEntry.HostName
+                        } catch {
+                            $hostname = "Hostname not found"
+                        }
+                        if (-not $OnlyActive) {
+                            Write-Host "IP: $currentIP is active. Hostname: $hostname"
+                        } else {
+                            Write-Host "IP: $currentIP is active. Hostname: $hostname"
+                        }
+                    } elseif (-not $OnlyActive) {
+                        Write-Host "IP: $currentIP is inactive."
+                    }
+                }
+                # Reset the last segment after each loop
+                $startIP[3] = 0
+            }
+            # Reset the third segment after each loop
+            $startIP[2] = 0
+        }
+        # Reset the second segment after each loop
+        $startIP[1] = 0
+    }
 }
 
-function Function-3 {
-    Write-Output "Function 3 called"
-}
-
-function Function-4 {
-    Write-Output "Function 4 called"
-}
 
 #######################
 ##### Formatting #####
@@ -193,17 +297,54 @@ Write-Host ""
 
 # Prompt the user to choose an option
 $choice = Read-Host "Choose an option
-1
-2
-3
-4
+0 - Run some general health checks
+1 - Pull a list of all active users in AD
+2 - Pull a list of all users with administrative privileges in AD
+3 - Set the password on accounts
+4 - Remove the password never expires flag on accounts
+5 - Set the password expires at next logon flag on accounts
+6 - Disable accounts in AD
+7 - Set DNS on this device
+8 - Purge DNS of a specified entry
+9 - Search DHCP for activity related to an IP
+10 - Scan a network range for active IPs
 "
 
 # Call the corresponding function based on the user's choice
 switch ($choice) {
-    1 { Function-1 }
-    2 { Function-2 }
-    3 { Function-3 }
-    4 { Function-4 }
-    default { Write-Output "Invalid choice. Please choose 1, 2, 3, or 4." }
+    0 {
+        Function-1 
+    }
+    1 {
+        Function-2
+    }
+    2 {
+        Function-2
+    }
+    3 {
+        Function-2
+    }
+    4 {
+        Function-2
+    }
+    5 {
+        Function-2
+    }
+    6 {
+        Function-2
+    }
+    7 {
+        Function-2
+    }
+    8 {
+        Function-2
+    }
+    9 {
+        Function-2
+    }
+    10 {
+        Function-2
+    }
+    
+    default { Write-Output "Invalid choice. Please choose an option from 0 to 10." }
 }
