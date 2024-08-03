@@ -8,6 +8,7 @@ function Set-Window {
     Snaps the PS window to the left side of the screen
     #>
     
+    [CmdletBinding()]
     param (
         [ValidateSet("Left", "Right", "Top", "Bottom")]
         [string]$Position

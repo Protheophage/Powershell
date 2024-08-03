@@ -27,6 +27,7 @@ function Set-ProjectFolder {
     Overides the default base directory to creates D:\WorkDir\ and changes to that directory
 
     #>
+    [CmdletBinding()]
     param (
         [string]$baseDir = "$env:SystemDrive\WorkDir",
         [string]$taskDir,

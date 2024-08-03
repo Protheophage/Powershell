@@ -9,6 +9,7 @@ function Get-DomainName {
     Get the domain name, and assign it to a variable
 	
     #>
+    [CmdletBinding()]
     Process {
         try {
             $domainName = (Get-WmiObject Win32_ComputerSystem).Domain

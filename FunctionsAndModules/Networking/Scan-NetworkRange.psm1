@@ -19,7 +19,8 @@ function Scan-NetworkRange {
     Scan-NetworkRange -StartRange "10.1.1.1" -EndRange "10.20.255.255" -OnlyActive
     This will output only the active IPs within the absolutely massive range 10.1-20.1-255.1-255
     #>
-
+    
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [string]$StartRange,

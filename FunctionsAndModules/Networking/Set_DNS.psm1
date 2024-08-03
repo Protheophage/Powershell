@@ -18,6 +18,7 @@ function Set-DNS {
     Sets DNS on all nics to google dns
 
     #>
+    [CmdletBinding()]
     param (
         $Primary = "127.0.0.1",
         $Secondary = "127.0.0.1"

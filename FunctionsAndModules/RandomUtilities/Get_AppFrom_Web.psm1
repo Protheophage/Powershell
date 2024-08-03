@@ -19,6 +19,7 @@ function Get-AppFromWeb {
     Skips the check for a previous install, and downloads/installs the latest FireFox.
 
     #>
+    [CmdletBinding()]
     param (
         [string]$testPath,
         [string]$installerUrl,
