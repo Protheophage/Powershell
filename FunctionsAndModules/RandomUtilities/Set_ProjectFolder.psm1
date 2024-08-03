@@ -19,8 +19,12 @@ function Set-ProjectFolder {
     Creates C:\WorkDir\WorkWork and changes to that directory
 
     .EXAMPLE
-    Set-ProjectFolder -taskDir "Work\Work" -changeDir
-    Creates C:\WorkDir\Work\Work and changes to that directory
+    $ProjectFolder = Set-ProjectFolder -taskDir "Work\Work"
+    Creates C:\WorkDir\Work\Work and assigns the path to the variable $ProjectFolder
+
+    .EXAMPLE
+    Set-ProjectFolder -baseDir "D:\WorkDir" -changeDir
+    Overides the default base directory to creates D:\WorkDir\ and changes to that directory
 
     #>
     param (
@@ -51,6 +55,13 @@ function Set-ProjectFolder {
             else{
                 Set-Location "$baseDir"
             }
+        }
+        #Return path for working dir
+        if (!([string]::isnullorempty($taskDir))){
+            return "$baseDir\$taskDir"
+        }
+        else{
+            return "$baseDir"
         }
     }
 }
