@@ -359,8 +359,13 @@ function Move-FSMO {
 
     [CmdletBinding()]
     Param (
-    [string]$DestServer = hostname
+    [string]$DestServer
     )
+    Begin {
+        if ([string]::isnullorempty($DestServer)) {
+            $DestServer = hostname
+        }
+    }
     Process {
         Move-ADDirectoryServerOperationMasterRole -Identity $DestServer -OperationMasterRole DomainNamingMaster,InfrastructureMaster,PDCEmulator,RIDMaster,SchemaMaster
     }
@@ -576,7 +581,7 @@ do {
         }
         #Move FSMO roles
         11 {
-            #Ask the user to use default workdir or not
+            #Ask the user to use this computer or not
             $UserSetPC = Read-Host "Enter the name of the computer to move roles to. Leave blank for this computer."
             if ([string]::isnullorempty($UserSetPC)){
                 Move-FSMO

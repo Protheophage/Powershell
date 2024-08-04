@@ -23,8 +23,13 @@ function Move-FSMO {
 
     [CmdletBinding()]
     Param (
-    [string]$DestServer = hostname
+    [string]$DestServer
     )
+    Begin {
+        if ([string]::isnullorempty($DestServer)) {
+            $DestServer = hostname
+        }
+    }
     Process {
         Move-ADDirectoryServerOperationMasterRole -Identity $DestServer -OperationMasterRole DomainNamingMaster,InfrastructureMaster,PDCEmulator,RIDMaster,SchemaMaster
     }
