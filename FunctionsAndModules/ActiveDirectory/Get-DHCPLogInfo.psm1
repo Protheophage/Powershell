@@ -17,19 +17,21 @@ function Get-DHCPLogInfo {
         [Parameter(Mandatory=$true)]
         [string]$IPAddress
     )
+    Begin {
+        # Define the path to the DHCP log files
+        $dhcpLogPath = "$env:SystemDrive\Windows\System32\dhcp"
 
-    # Define the path to the DHCP log files
-    $dhcpLogPath = "C:\Windows\System32\dhcp"
-
-    # Get a list of all DHCP log files
-    $dhcpLogFiles = Get-ChildItem -Path $dhcpLogPath -Filter "DhcpSrvLog-*.log"
-
-    # Loop through each log file and search for the IP address
-    foreach ($logFile in $dhcpLogFiles) {
-        # Output the name of the current log file being searched
-        Write-Host "Searching in file: $($logFile.Name)"
-        
-        # Get the content of the DHCP log file and filter for the IP address
-        Get-Content $logFile.FullName | Where-Object { $_ -match $IPAddress }
+        # Get a list of all DHCP log files
+        $dhcpLogFiles = Get-ChildItem -Path $dhcpLogPath -Filter "DhcpSrvLog-*.log"
+    }
+    Process {
+        # Loop through each log file and search for the IP address
+        foreach ($logFile in $dhcpLogFiles) {
+            # Output the name of the current log file being searched
+            Write-Host "Searching in file: $($logFile.Name)"
+            
+            # Get the content of the DHCP log file and filter for the IP address
+            Get-Content $logFile.FullName | Where-Object { $_ -match $IPAddress }
+        }
     }
 }

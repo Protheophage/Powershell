@@ -29,7 +29,6 @@ function Set-DNS {
     End {
         Write-Host "The IP Settings are:"
         ipconfig /all
-        Write-Host "Press any key to exit"
-        Read-Host
+        Read-Host -Prompt "Press any key to exit"
     }
 }

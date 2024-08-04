@@ -14,6 +14,9 @@ A toolkit of some common AD tasks
 8 - Purge DNS of a specified entry
 9 - Search DHCP for activity related to an IP
 10 - Scan a network range for active IPs
+11 - Move FSMO roles to different server
+
+ToDo Finish 3, 4, 5, 6
 #>
 
 #######################
@@ -135,20 +138,22 @@ function Get-DHCPLogInfo {
         [Parameter(Mandatory=$true)]
         [string]$IPAddress
     )
+    Begin {
+        # Define the path to the DHCP log files
+        $dhcpLogPath = "$env:SystemDrive\Windows\System32\dhcp"
 
-    # Define the path to the DHCP log files
-    $dhcpLogPath = "C:\Windows\System32\dhcp"
-
-    # Get a list of all DHCP log files
-    $dhcpLogFiles = Get-ChildItem -Path $dhcpLogPath -Filter "DhcpSrvLog-*.log"
-
-    # Loop through each log file and search for the IP address
-    foreach ($logFile in $dhcpLogFiles) {
-        # Output the name of the current log file being searched
-        Write-Host "Searching in file: $($logFile.Name)"
-        
-        # Get the content of the DHCP log file and filter for the IP address
-        Get-Content $logFile.FullName | Where-Object { $_ -match $IPAddress }
+        # Get a list of all DHCP log files
+        $dhcpLogFiles = Get-ChildItem -Path $dhcpLogPath -Filter "DhcpSrvLog-*.log"
+    }
+    Process {
+        # Loop through each log file and search for the IP address
+        foreach ($logFile in $dhcpLogFiles) {
+            # Output the name of the current log file being searched
+            Write-Host "Searching in file: $($logFile.Name)"
+            
+            # Get the content of the DHCP log file and filter for the IP address
+            Get-Content $logFile.FullName | Where-Object { $_ -match $IPAddress }
+        }
     }
 }
 
@@ -271,6 +276,95 @@ function Scan-NetworkRange {
     }
 }
 
+#Function to Set DNS
+function Set-DNS {
+    <#
+    .SYNOPSIS
+    Set the DNS
+
+    .DESCRIPTION
+    Finds all network adapters, and sets the DNS
+
+    .PARAMETER Primary
+    .PARAMETER Secondary
+
+    .EXAMPLE
+    Set-DNS
+    Sets DNS on all nics to the loopback
+
+    .EXAMPLE
+    Set-DNS -Primary 8.8.8.8 -Secondary 8.8.4.4
+    Sets DNS on all nics to google dns
+
+    #>
+    [CmdletBinding()]
+    param (
+        $Primary = "127.0.0.1",
+        $Secondary = "127.0.0.1"
+    )
+    Process {
+        $NetAdapter = Get-NetAdapter | Select-Object InterfaceAlias, InterfaceIndex; $NetAdapter = $NetAdapter.InterfaceIndex; ForEach($Index in $NetAdapter) {Set-DnsClientServerAddress -InterfaceIndex $Index -ServerAddresses ("$Primary","$Secondary")}
+    }
+    End {
+        Write-Host "The IP Settings are:"
+        ipconfig /all
+        Read-Host -Prompt "Press any key to exit"
+    }
+}
+
+#Function to prompt the user
+function Prompt-User {
+    # Prompt the user to choose an option
+    $choice = Read-Host "Choose an option
+    0 - Run some general health checks
+    1 - Pull a list of all active users in AD
+    2 - Pull a list of all users with administrative privileges in AD
+    3 - Set the password on accounts
+    4 - Remove the password never expires flag on accounts
+    5 - Set the password expires at next logon flag on accounts
+    6 - Disable accounts in AD
+    7 - Set DNS on this device
+    8 - Purge DNS of a specified entry
+    9 - Search DHCP for activity related to an IP
+    10 - Scan a network range for active IPs
+    11 - Move FSMO roles to a different server
+    99 - Exit
+    "
+    return $choice
+}
+
+#Function to move FSMO roles
+function Move-FSMO {
+    <#
+    .SYNOPSIS
+    Moves FSMO roles to selected computer
+
+    .DESCRIPTION
+    Moves FSMO roles to selected computer
+
+    .PARAMETER DestDir
+
+    .EXAMPLE
+    Move-FSMO
+    Moves all the FSMO roles to the computer the command is being executed on
+
+    .EXAMPLE
+    Move-FSMO -DestServer DC02
+    Moves all FSMO roles to DC02
+    
+    .EXAMPLE
+    Move-FSMO -DestServer DC02 -Force
+    Seizes all FSMO roles to DC02
+    #>
+
+    [CmdletBinding()]
+    Param (
+    [string]$DestServer = hostname
+    )
+    Process {
+        Move-ADDirectoryServerOperationMasterRole -Identity $DestServer -OperationMasterRole DomainNamingMaster,InfrastructureMaster,PDCEmulator,RIDMaster,SchemaMaster
+    }
+}
 
 #######################
 ##### Formatting #####
@@ -294,57 +388,204 @@ Write-Host ""
 #########################
 ##### Do The Thing #####
 #######################
+do {
+    # Prompt the user to choose an option
+    $userChoice = Prompt-User
 
-# Prompt the user to choose an option
-$choice = Read-Host "Choose an option
-0 - Run some general health checks
-1 - Pull a list of all active users in AD
-2 - Pull a list of all users with administrative privileges in AD
-3 - Set the password on accounts
-4 - Remove the password never expires flag on accounts
-5 - Set the password expires at next logon flag on accounts
-6 - Disable accounts in AD
-7 - Set DNS on this device
-8 - Purge DNS of a specified entry
-9 - Search DHCP for activity related to an IP
-10 - Scan a network range for active IPs
-"
+    # Call the corresponding function based on the user's choice
+    switch ($userChoice) {
+        #Health checks (Complete)
+        0 {
+            #Ask the user to use default workdir or not
+            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
+            $UserSetDir = Read-Host
+            if ([string]::isnullorempty($UserSetDir)){
+                [string]$outputDir = Set-ProjectFolder
+            }
+            else {
+                [string]$outputDir = Set-ProjectFolder -baseDir "$UserSetDir"
+            }
+            # Set some variables
+            [string]$baseFilename = "HealthChecks"
+            [string]$HName = hostname
+            [string]$DateTime = (Get-Date).ToString("MMddyy_HHmm")
+            [string]$outputFile = "$outputDir\$Hostname`_$baseFilename`_$DateTime.txt"
 
-# Call the corresponding function based on the user's choice
-switch ($choice) {
-    0 {
-        Function-1 
+            #Generate the file
+            New-Item -Path $outputFile -ItemType "file" -Force
+
+            # Run the commands and write the output to the file
+            Write-Host "Getting FSMO roles"
+            Add-Content -Path $outputFile -Value "-----FSMO START-----"
+            netdom query fsmo | Add-Content -Path $outputFile
+            Add-Content -Path $outputFile -Value "-----FSMO END-----"
+
+            Write-Host "Running RepAdmin /showrepl"
+            Add-Content -Path $outputFile -Value "-----REPADMIN END-----"
+            repadmin /showrepl | Add-Content -Path $outputFile
+            Add-Content -Path $outputFile -Value "-----REPADMIN END-----"
+
+            Write-Host "Running dcdiag /v"
+            Add-Content -Path $outputFile -Value "-----DCDIAG START-----"
+            dcdiag /v | Add-Content -Path $outputFile
+            Add-Content -Path $outputFile -Value "-----DCDIAG END-----"
+
+            Write-Host "Running dcdiag /test:net"
+            Add-Content -Path $outputFile -Value "-----NETLOGON START-----"
+            dcdiag /test:netlogons | Add-Content -Path $outputFile
+            Add-Content -Path $outputFile -Value "-----NETLOGON END-----"
+
+            # Notify the user
+            Write-Host "Health check report saved to $outputFile"
+            Read-Host -Prompt "Press any key to exit" 
+        }
+        #Pull users (Complete)
+        1 {
+            #Ask the user to use default workdir or not
+            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
+            $UserSetDir = Read-Host
+            if ([string]::isnullorempty($UserSetDir)){
+                [string]$outputDir = Set-ProjectFolder
+            }
+            else {
+                [string]$outputDir = Set-ProjectFolder -baseDir "$UserSetDir"
+            }
+            # Set some variables
+            [string]$baseFilename = "Users"
+            [string]$domainName = Get-DomainName
+            [string]$DateTime = (Get-Date).ToString("MMddyy_HHmm")
+            [string]$outputFile = "$outputDir\$domainName`_$baseFilename`_$DateTime.txt"
+            
+            #Do the thing
+            Get-ADUser -Filter 'enabled -eq $true' -properties name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Select name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Export-Csv $outputFile
+        }
+        #Pull Admins (Complete)
+        2 {
+            #Ask the user to use default workdir or not
+            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
+            $UserSetDir = Read-Host
+            if ([string]::isnullorempty($UserSetDir)){
+                [string]$outputDir = Set-ProjectFolder
+            }
+            else {
+                [string]$outputDir = Set-ProjectFolder -baseDir "$UserSetDir"
+            }
+            # Set some variables
+            [string]$baseFilename = "AdminUsers"
+            [string]$domainName = Get-DomainName
+            [string]$DateTime = (Get-Date).ToString("MMddyy_HHmm")
+            [string]$outputFile = "$outputDir\$domainName`_$baseFilename`_$DateTime.txt"
+
+            #Do the thing
+            get-adgroupmember -Identity Administrators -Recursive | Select-Object name |foreach-object {Get-ADUser -filter "name -eq '$($_.name)'" -properties *} | select-object name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Export-CSV $outputFile
+        }
+        #Set pw (WIP)
+        3 {
+            Write-Host "This function is coming soon"
+        }
+        #Remove pw no expire (WIP)
+            <#Able to set for all users. Need to build funtion to set from csv#>
+        4 {
+            $AllOrCsv = Read-Host "Would you like to:
+            1 - Remove the password never expires flag from all users
+            2 - Remove the password never expires flag from users in a csv
+            "
+            switch ($AllOrCsv){
+                1 {
+                    Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$False}
+                }
+                2 {
+                    Write-Host "This function is coming soon"
+                }
+                default {
+                    Write-Host "Please enter 1 or 2"
+                }
+            }
+        }
+        #Set pw expire (WIP)
+            <#Able to set for all users. Need to build funtion to set from csv#>
+        5 {
+            $AllOrCsv = Read-Host "Would you like to:
+            1 - Set the password to expire at next logon for all users
+            2 - Set the password to expire at next logon for users from a csv
+            "
+            switch ($AllOrCsv){
+                1 {
+                    Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$True}
+                }
+                2 {
+                    Write-Host "This function is coming soon"
+                }
+                default {
+                    Write-Host "Please enter 1 or 2"
+                }
+            }
+        }
+        #Disable accounts (WIP)
+        6 {
+            Write-Host "This function is coming soon"
+        }
+        #Set DNS (Complete)
+        7 {
+            #Ask the user for IPs
+            Write-Host "Enter the Primary IP"
+            $UserPrimaryIP = Read-Host
+            Write-Host "Enter the Secondary IP"
+            $UserSecondaryIP = Read-Host
+
+            #Do the thing
+            Set-DNS -Primary $UserPrimaryIP -Secondary $UserSecondaryIP
+        }        
+        #Purge DNS (WIP - Functional)
+            <#Needs some troubleshooting...
+            Gets a lot of the DNS entries, but not quite all of them#>
+        8 {
+            #Ask the user for the item to purge
+            Write-Host "Enter what you want to remove. Such as DC01.Contoso.com, or 192.168.42.42"
+            $UserItemToPurge = Read-Host
+
+            #Do the thing
+            Purge-DNSEntries -PurgeThis "$UserItemToPurge"
+
+            #Inform user
+            Write-Host "Make sure to doublecheck DNS.  This seems to leave a few stragglers some times." -ForeGroundColor Red
+        }
+        #Search DHCP (Complete)
+        9 {
+            #Ask the user for the item to purge
+            Write-Host "Enter IP address that you want to search for."
+            $UserIpToFind = Read-Host
+
+            #Do the thing
+            Get-DHCPLogInfo -IPAddress $UserIpToFind
+
+            Read-Host -Prompt "Press any key to continue..."
+        }
+        #Scan a network range (Complete)
+        10 {
+            #Ask the user for IPs
+            Write-Host "Enter the start IP"
+            $UserStartIP = Read-Host
+            Write-Host "Enter the end IP"
+            $UserEndIP = Read-Host
+
+            #Do the thing
+            Scan-NetworkRange -StartRange $UserStartIP -EndRange $UserEndIP -OnlyActive
+
+            Read-Host -Prompt "Press any key to continue..."
+        }
+        #Move FSMO roles
+        11 {
+            #Ask the user to use default workdir or not
+            $UserSetPC = Read-Host "Enter the name of the computer to move roles to. Leave blank for this computer."
+            if ([string]::isnullorempty($UserSetPC)){
+                Move-FSMO
+            }
+            else {
+                Move-FSMO -DestServer $UserSetPC
+            }
+        }
+        
+        default { Write-Output "Invalid choice. Please choose an option from 0 to 10, or 99." }
     }
-    1 {
-        Function-2
-    }
-    2 {
-        Function-2
-    }
-    3 {
-        Function-2
-    }
-    4 {
-        Function-2
-    }
-    5 {
-        Function-2
-    }
-    6 {
-        Function-2
-    }
-    7 {
-        Function-2
-    }
-    8 {
-        Function-2
-    }
-    9 {
-        Function-2
-    }
-    10 {
-        Function-2
-    }
-    
-    default { Write-Output "Invalid choice. Please choose an option from 0 to 10." }
-}
+} while ($userChoice -ne 99)
