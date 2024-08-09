@@ -1,3 +1,4 @@
+
 function Scan-NetworkRange {
 
     <#
@@ -23,9 +24,23 @@ function Scan-NetworkRange {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         [string]$StartRange,
         
         [Parameter(Mandatory=$true)]
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         [string]$EndRange,
 
         [switch]$OnlyActive=$false

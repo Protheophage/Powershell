@@ -230,9 +230,23 @@ function Scan-NetworkRange {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         [string]$StartRange,
         
         [Parameter(Mandatory=$true)]
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         [string]$EndRange,
 
         [switch]$OnlyActive=$false
@@ -299,11 +313,29 @@ function Set-DNS {
     #>
     [CmdletBinding()]
     param (
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         $Primary = "127.0.0.1",
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         $Secondary = "127.0.0.1"
     )
+    Begin {
+        $NetAdapter = Get-NetAdapter | Select-Object InterfaceIndex; 
+        $Adapter = $NetAdapter.InterfaceIndex; 
+    }
     Process {
-        $NetAdapter = Get-NetAdapter | Select-Object InterfaceAlias, InterfaceIndex; $NetAdapter = $NetAdapter.InterfaceIndex; ForEach($Index in $NetAdapter) {Set-DnsClientServerAddress -InterfaceIndex $Index -ServerAddresses ("$Primary","$Secondary")}
+        ForEach($Index in $Adapter) {Set-DnsClientServerAddress -InterfaceIndex $Index -ServerAddresses ("$Primary","$Secondary")}
     }
     End {
         Write-Host "The IP Settings are:"
@@ -378,16 +410,16 @@ function Move-FSMO {
 ####Set a window title and foreground color
 $uiConfig = (Get-Host).UI.RawUI
 $uiConfig.WindowTitle = "Active Directory Toolkit"
-$uiConfig.ForegroundColor = "DarkCyan"
+$uiConfig.ForegroundColor = "Cyan"
 
 Write-Host ""
-Write-Host "===========================================================" -ForeGroundColor Cyan
-Write-Host "|                                                         |" -ForeGroundColor Cyan
-Write-Host "|              Active Directory Toolkit                   |" -ForeGroundColor Cyan
-Write-Host "|                                                         |" -ForeGroundColor Cyan
-Write-Host "|                Written By: Colby C                      |" -ForeGroundColor Cyan
-Write-Host "|                                                         |" -ForeGroundColor Cyan
-Write-Host "===========================================================" -ForeGroundColor Cyan
+Write-Host "===========================================================" -ForeGroundColor Green
+Write-Host "|                                                         |" -ForeGroundColor Green
+Write-Host "|              Active Directory Toolkit                   |" -ForeGroundColor Green
+Write-Host "|                                                         |" -ForeGroundColor Green
+Write-Host "|                Written By: Colby C                      |" -ForeGroundColor Green
+Write-Host "|                                                         |" -ForeGroundColor Green
+Write-Host "===========================================================" -ForeGroundColor Green
 Write-Host ""
 
 #########################
@@ -402,8 +434,7 @@ do {
         #Health checks (Complete)
         0 {
             #Ask the user to use default workdir or not
-            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
-            $UserSetDir = Read-Host
+            $UserSetDir = Read-Host -Prompt "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
             if ([string]::isnullorempty($UserSetDir)){
                 [string]$outputDir = Set-ProjectFolder
             }
@@ -412,9 +443,9 @@ do {
             }
             # Set some variables
             [string]$baseFilename = "HealthChecks"
-            [string]$HName = hostname
+            [string]$HName = $env:Computername
             [string]$DateTime = (Get-Date).ToString("MMddyy_HHmm")
-            [string]$outputFile = "$outputDir\$Hostname`_$baseFilename`_$DateTime.txt"
+            [string]$outputFile = "$outputDir\$Hname`_$baseFilename`_$DateTime.txt"
 
             #Generate the file
             New-Item -Path $outputFile -ItemType "file" -Force
@@ -442,7 +473,6 @@ do {
 
             # Notify the user
             Write-Host "Health check report saved to $outputFile"
-            Read-Host -Prompt "Press any key to exit" 
         }
         #Pull users (Complete)
         1 {

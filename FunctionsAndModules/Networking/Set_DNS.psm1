@@ -20,11 +20,29 @@ function Set-DNS {
     #>
     [CmdletBinding()]
     param (
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         $Primary = "127.0.0.1",
+        [ValidateScript({
+            if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                $true
+            } else {
+                throw "Please enter a valid IP address"
+            }
+        })]
         $Secondary = "127.0.0.1"
     )
+    Begin {
+        $NetAdapter = Get-NetAdapter | Select-Object InterfaceIndex; 
+        $Adapter = $NetAdapter.InterfaceIndex; 
+    }
     Process {
-        $NetAdapter = Get-NetAdapter | Select-Object InterfaceAlias, InterfaceIndex; $NetAdapter = $NetAdapter.InterfaceIndex; ForEach($Index in $NetAdapter) {Set-DnsClientServerAddress -InterfaceIndex $Index -ServerAddresses ("$Primary","$Secondary")}
+        ForEach($Index in $Adapter) {Set-DnsClientServerAddress -InterfaceIndex $Index -ServerAddresses ("$Primary","$Secondary")}
     }
     End {
         Write-Host "The IP Settings are:"

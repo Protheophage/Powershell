@@ -114,8 +114,7 @@ Parameter Examples{
 	{
 
 	[OutputType([PSObject],ParameterSetName="ParamSet")]
-	Param
-	(
+	Param(
 	[Parameter(Mandatory=$true,
 		ParameterSetName="ParamSet",
 		Position=1)]
