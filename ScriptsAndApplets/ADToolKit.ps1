@@ -403,6 +403,203 @@ function Move-FSMO {
     }
 }
 
+#Function to generate passwords
+function Get-RandomString {
+    <#
+    .SYNOPSIS
+    Generate a random string
+
+    .DESCRIPTION
+    Generates a random string with upper, lower, numbers, and special characters. The default length is 14 characters.
+
+    .PARAMETER length
+
+    .EXAMPLE
+    Get-RandomString
+    Generate a 14 character string
+
+    .EXAMPLE
+    Get-RandomString -length 20
+    Generate a 20 character string
+    #>
+    [CmdletBinding()]
+    param (
+        [int]$length = 14
+    )
+    Begin {
+        $chars = @()
+        $chars += [char[]](65..90)   # Uppercase A-Z
+        $chars += [char[]](97..122)  # Lowercase a-z
+        $chars += [char[]](48..57)   # Numbers 0-9
+        $chars += [char[]](33..47)   # Special characters ! " # $ % & ' ( ) * + , - . /   
+    }
+    Process {
+        $RandString = -join (1..$length | ForEach-Object { $chars | Get-Random })
+    }
+    End {
+        Return $RandString
+    }
+}
+
+#Function to set Passwords from CSV
+function Set-ADPasswordFromCSV {
+    <#
+    .SYNOPSIS
+    Set AD Passwords for list of users from CSV
+
+    .DESCRIPTION
+    Create a list of Sam Account Names in a CSV. Either generate random passwords (default), or add passwords for each user to a second column in the csv.
+
+    .PARAMETER CsvName
+    Enter the path to a csv with the list of Sam Account Names, and passwords if applicable.
+    The default is to title the username column SamAccountName and the passwords column Password. This can be overidden with the UserNameColumnTitle, and PwColumnTitle parameters.
+    .PARAMETER ProjectFolder
+    The default is $env:SystemDrive\WorkDir
+    .PARAMETER PwFromCSV
+    A switch to determine if the passwords should be generated or provided in the CSV.
+    If the switch is enabled a Password column must be included in the CSV.
+    .PARAMETER UserNameColumnTitle
+    .PARAMETER PwColumnTitle
+    .PARAMETER LogFileName
+    .PARAMETER PwLength
+    Sets the length of the randomly generated password. The default is 14.
+
+    .EXAMPLE
+    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv"
+    Sets random 14 character passwords for all users listed in Users.csv
+
+    .EXAMPLE
+    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -PwLength 22
+    Sets a 22 character password
+
+    .EXAMPLE
+    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -PwFromCSV
+    Sets the passwords provided in the CSV
+
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true,
+        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [String]$CsvName,
+        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [Switch]$PwFromCSV,
+        [String]$UserNameColumnTitle = "SamAccountName",
+        [String]$PwColumnTitle = "Password",
+        [String]$LogFileName = "ResetUserPasswords.log",
+        [Int]$PwLength = 14
+    )
+    Begin {
+        $UserNamesList = Import-Csv -Path $CsvName
+        Import-Module ActiveDirectory
+        $WorkingDir = Set-ProjectFolder -baseDir $ProjectFolder
+        Start-Transcript -Path "$WorkingDir\$LogFileName" -Append
+    }
+    Process {
+        if(!($PwFromCSV)){
+            foreach ($User in $UserNamesList) {
+                $ADUser = $User.$UserNameColumnTitle
+                $ADPW = Get-RandomString -length $PwLength
+                $password = ConvertTo-SecureString -AsPlainText $ADPW -force
+                Write-Host "Setting Password for " $ADUser " to " $ADPW
+                Set-ADAccountPassword $ADUser -NewPassword $password -Reset
+            }
+        }
+        else{
+            foreach ($User in $UserNamesList) {
+                $ADUser = $User.$UserNameColumnTitle
+                $ADPW = $user.$PwColumnTitle
+                $password = ConvertTo-SecureString -AsPlainText $ADPW -force
+                Write-Host "Setting Password for " $ADUser " to " $ADPW
+                Set-ADAccountPassword $ADUser -NewPassword $password -Reset
+            }
+        }
+    }
+    End {
+        Stop-Transcript
+        Write-Host "The log file can be found at $WorkingDir\$LogFileName"
+    }
+}
+
+#Function to set pw expire flag
+function Set-PasswordNeverExpires {
+    <#
+    .SYNOPSIS
+    Set AD Password Never Expires flag
+
+    .DESCRIPTION
+    Set AD Password Never Expires flag. Either remove the flag from all accounts (default), or remove the flag for all accounts listed in a csv.
+
+    .PARAMETER CsvName
+    Enter the path to a csv with the list of Sam Account Names.
+    The default is to title the username column SamAccountName. This can be overidden with the UserNameColumnTitle parameter.
+    .PARAMETER ProjectFolder
+    The default is $env:SystemDrive\WorkDir
+    .PARAMETER UserNameColumnTitle
+    .PARAMETER LogFileName
+    .PARAMETER SetEnable
+    Defualt is to disable (remove the flag). Include this switch to enable pw ever expires instead.
+
+    .EXAMPLE
+    Set-PasswordNeverExpires
+    Removes the password never expires flag from all AD accounts.
+
+    .EXAMPLE
+    Set-PasswordNeverExpires -CsvName "C:\MyFolder\Users.csv"
+    Removes the password never expires flag from all accounts listed in a CSV.
+
+    .EXAMPLE
+    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -SetEnable
+    Sets the Password Never Expires flag for all accounts listed in a CSV. Useful for service accounts.
+
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [String]$CsvName,
+        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [String]$UserNameColumnTitle = "SamAccountName",
+        [String]$LogFileName = "PwNeverExpires.log",
+        [Switch]$SetEnable
+    )
+    Begin {
+        $UserNamesList = Import-Csv -Path $CsvName
+        Import-Module ActiveDirectory
+        $WorkingDir = Set-ProjectFolder -baseDir $ProjectFolder
+        Start-Transcript -Path "$WorkingDir\$LogFileName" -Append
+    }
+    Process {
+        if([string]::isnullorempty($CsvName)){
+            if(!($SetEnable)){
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$False}
+            }
+            else{
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$True}
+            }
+        }
+        else{
+            if(!($SetEnable)){
+                foreach ($User in $UserNamesList) {
+                    $ADUser = $User.$UserNameColumnTitle
+                    Write-Host "Removing Password Never Expires flag for " $ADUser
+                    Set-ADUser $ADUser -PasswordNeverExpires:$False
+                }
+            }
+            else{
+                foreach ($User in $UserNamesList) {
+                    $ADUser = $User.$UserNameColumnTitle
+                    Write-Host "Removing Password Never Expires flag for " $ADUser
+                    Set-ADUser $ADUser -PasswordNeverExpires:$True
+                }
+            }
+        }
+    }
+    End {
+        Stop-Transcript
+        Write-Host "The log file can be found at $WorkingDir\$LogFileName"
+    }
+}
+
 #######################
 ##### Formatting #####
 #####################
@@ -514,12 +711,27 @@ do {
             #Do the thing
             get-adgroupmember -Identity Administrators -Recursive | Select-Object name |foreach-object {Get-ADUser -filter "name -eq '$($_.name)'" -properties *} | select-object name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Export-CSV $outputFile
         }
-        #Set pw (WIP)
+        #Set pw
         3 {
-            Write-Host "This function is coming soon"
+            $PwCsvPath = Read-Host "Enter the path to the CSV with the list of SAM Account Names: "
+            $CsvOrRand = Read-Host "Would you like to:
+            1 - Generate random passwords
+            2 - Use passwords listed in the CSV"
+
+            switch ($CsvOrRand){
+                1{
+                    [int]$PwCharCnt = Read-Host "How many characters should the password be: "
+                    Set-ADPasswordFromCSV -CsvName $PwCsvPath -PwLength $PwCharCnt
+                }
+                2{
+                    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -PwFromCSV
+                }
+                default{
+                    Write-Host "Please enter 1 for random passwords, or 2 for passwords from CSV."
+                }
+            }
         }
-        #Remove pw no expire (WIP)
-            <#Able to set for all users. Need to build funtion to set from csv#>
+        #Remove pw no expire
         4 {
             $AllOrCsv = Read-Host "Would you like to:
             1 - Remove the password never expires flag from all users
@@ -527,13 +739,14 @@ do {
             "
             switch ($AllOrCsv){
                 1 {
-                    Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$False}
+                    Set-PasswordNeverExpires
                 }
                 2 {
-                    Write-Host "This function is coming soon"
+                    $UserCsv = Read-Host "Enter the path to the CSV with the list of SAM Account Names: "
+                    Set-PasswordNeverExpires -CsvName $UserCsv
                 }
                 default {
-                    Write-Host "Please enter 1 or 2"
+                    Write-Host "Please enter 1 for all users or 2 for users from CSV."
                 }
             }
         }
