@@ -1,3 +1,82 @@
+function Set-ADPasswordFromCSV {
+    <#
+    .SYNOPSIS
+    Set AD Passwords for list of users from CSV
+
+    .DESCRIPTION
+    Create a list of Sam Account Names in a CSV. Either generate random passwords (default), or add passwords for each user to a second column in the csv.
+
+    .PARAMETER CsvName
+    Enter the path to a csv with the list of Sam Account Names, and passwords if applicable.
+    The default is to title the username column SamAccountName and the passwords column Password. This can be overidden with the UserNameColumnTitle, and PwColumnTitle parameters.
+    .PARAMETER ProjectFolder
+    The default is $env:SystemDrive\WorkDir
+    .PARAMETER PwFromCSV
+    A switch to determine if the passwords should be generated or provided in the CSV.
+    If the switch is enabled a Password column must be included in the CSV.
+    .PARAMETER UserNameColumnTitle
+    .PARAMETER PwColumnTitle
+    .PARAMETER LogFileName
+    .PARAMETER PwLength
+    Sets the length of the randomly generated password. The default is 14.
+
+    .EXAMPLE
+    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv"
+    Sets random 14 character passwords for all users listed in Users.csv
+
+    .EXAMPLE
+    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -PwLength 22
+    Sets a 22 character password
+
+    .EXAMPLE
+    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -PwFromCSV
+    Sets the passwords provided in the CSV
+
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true,
+        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [String]$CsvName,
+        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [Switch]$PwFromCSV,
+        [String]$UserNameColumnTitle = "SamAccountName",
+        [String]$PwColumnTitle = "Password",
+        [String]$LogFileName = "ResetUserPasswords.log",
+        [Int]$PwLength = 14
+    )
+    Begin {
+        $UserNamesList = Import-Csv -Path $CsvName
+        Import-Module ActiveDirectory
+        $WorkingDir = Set-ProjectFolder -baseDir $ProjectFolder
+        Start-Transcript -Path "$WorkingDir\$LogFileName" -Append
+    }
+    Process {
+        if(!($PwFromCSV)){
+            foreach ($User in $UserNamesList) {
+                $ADUser = $User.$UserNameColumnTitle
+                $ADPW = Get-RandomString -length $PwLength
+                $password = ConvertTo-SecureString -AsPlainText $ADPW -force
+                Write-Host "Setting Password for " $ADUser " to " $ADPW
+                Set-ADAccountPassword $ADUser -NewPassword $password -Reset
+            }
+        }
+        else{
+            foreach ($User in $UserNamesList) {
+                $ADUser = $User.$UserNameColumnTitle
+                $ADPW = $user.$PwColumnTitle
+                $password = ConvertTo-SecureString -AsPlainText $ADPW -force
+                Write-Host "Setting Password for " $ADUser " to " $ADPW
+                Set-ADAccountPassword $ADUser -NewPassword $password -Reset
+            }
+        }
+    }
+    End {
+        Stop-Transcript
+        Write-Host "The log file can be found at $WorkingDir\$LogFileName"
+    }
+}
+
 ###############################
 ##### Support Functions ######
 #############################
@@ -104,69 +183,5 @@ function Set-ProjectFolder {
         else{
             return "$baseDir"
         }
-    }
-}
-
-#############################
-##### Actual Function ######
-###########################
-function Set-ADPasswordFromCSV {
-    <#
-    .SYNOPSIS
-    Enter quick description here
-
-    .DESCRIPTION
-    Enter Description Here
-
-    .PARAMETER CsvName
-    .PARAMETER ProjectFolder
-    .PARAMETER PwFromCSV
-
-    .EXAMPLE
-    Example here
-    Description of example here
-
-    #>
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory=$true,
-        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
-        [String]$CsvName,
-        [String]$ProjectFolder = "C:\WorkDir",
-        [Switch]$PwFromCSV,
-        [String]$UserNameColumnTitle = "SamAccountName",
-        [String]$PwColumnTitle = "Password",
-        [String]$LogFileName = "ResetUserPasswords.log",
-        [Int]$PwLength = 14
-    )
-    Begin {
-        $UserNamesList = Import-Csv -Path $CsvName
-        Import-Module ActiveDirectory
-        $WorkingDir = Set-ProjectFolder -baseDir $ProjectFolder
-        Start-Transcript -Path "$WorkingDir\$LogFileName" -Append
-    }
-    Process {
-        if(!($PwFromCSV)){
-            foreach ($User in $UserNamesList) {
-                $ADUser = $User.$UserNameColumnTitle
-                $ADPW = Get-RandomString -length $PwLength
-                $password = ConvertTo-SecureString -AsPlainText $ADPW -force
-                Write-Host "Setting Password for " $ADUser " to " $ADPW
-                Set-ADAccountPassword $ADUser -NewPassword $password -Reset
-            }
-        }
-        else{
-            foreach ($User in $UserNamesList) {
-                $ADUser = $User.$UserNameColumnTitle
-                $ADPW = $user.$PwColumnTitle
-                $password = ConvertTo-SecureString -AsPlainText $ADPW -force
-                Write-Host "Setting Password for " $ADUser " to " $ADPW
-                Set-ADAccountPassword $ADUser -NewPassword $password -Reset
-            }
-        }
-    }
-    End {
-        Stop-Transcript
-        Write-Host "The log file can be found at $WorkingDir\$LogFileName"
     }
 }
