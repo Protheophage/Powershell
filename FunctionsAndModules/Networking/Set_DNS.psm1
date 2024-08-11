@@ -1,3 +1,6 @@
+<#
+ToDo: Add something to validate that IPv4 is active on the NIC before setting DNS.
+#>
 function Set-DNS {
     <#
     .SYNOPSIS

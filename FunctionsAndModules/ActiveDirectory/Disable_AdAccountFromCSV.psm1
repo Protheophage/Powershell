@@ -1,10 +1,10 @@
-function Set-PasswordNeverExpires {
+function Disable-AdAccountFromCSV {
     <#
     .SYNOPSIS
-    Set AD Password Never Expires flag
+    Disable AD accounts listed in a CSV
 
     .DESCRIPTION
-    Set AD Password Never Expires flag. Either remove the flag from accounts (default), or set the flag for accounts. If no CSV path is provided to -CsvName this will run on all accounts.
+    Disable accounts listed by Sam Account Names in a CSV.
 
     .PARAMETER CsvName
     Enter the path to a csv with the list of Sam Account Names.
@@ -13,30 +13,20 @@ function Set-PasswordNeverExpires {
     The default is $env:SystemDrive\WorkDir
     .PARAMETER UserNameColumnTitle
     .PARAMETER LogFileName
-    .PARAMETER SetEnable
-    Defualt is to disable (remove the flag). Include this switch to enable pw ever expires instead.
+    Sets the length of the randomly generated password. The default is 14.
 
     .EXAMPLE
-    Set-PasswordNeverExpires
-    Removes the password never expires flag from all AD accounts.
-
-    .EXAMPLE
-    Set-PasswordNeverExpires -CsvName "C:\MyFolder\Users.csv"
-    Removes the password never expires flag from all accounts listed in a CSV.
-
-    .EXAMPLE
-    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -SetEnable
-    Sets the Password Never Expires flag for all accounts listed in a CSV. Useful for service accounts.
-
+    Disable-AdAccountFromCSV -CsvName "C:\MyFolder\Users.csv"
+    Disables all accounts listed in Users.csv under the column titled SamAccountName
     #>
     [CmdletBinding()]
     param (
-        [Parameter(HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [Parameter(Mandatory=$true,
+        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
         [String]$CsvName,
         [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
         [String]$UserNameColumnTitle = "SamAccountName",
-        [String]$LogFileName = "PwNeverExpires.log",
-        [Switch]$SetEnable
+        [String]$LogFileName = "DisabledUsers.log"
     )
     Begin {
         $UserNamesList = Import-Csv -Path $CsvName
@@ -45,31 +35,10 @@ function Set-PasswordNeverExpires {
         Start-Transcript -Path "$WorkingDir\$LogFileName" -Append
     }
     Process {
-        if([string]::isnullorempty($CsvName)){
-            if(!($SetEnable)){
-                Write-Host "Removing Password Never Expires flag for all users."
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$False}
-            }
-            else{
-                Write-Host "Setting Password Never Expires flag for all users."
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$True}
-            }
-        }
-        else{
-            if(!($SetEnable)){
-                foreach ($User in $UserNamesList) {
-                    $ADUser = $User.$UserNameColumnTitle
-                    Write-Host "Removing Password Never Expires flag for " $ADUser
-                    Set-ADUser $ADUser -PasswordNeverExpires:$False
-                }
-            }
-            else{
-                foreach ($User in $UserNamesList) {
-                    $ADUser = $User.$UserNameColumnTitle
-                    Write-Host "Setting Password Never Expires flag for " $ADUser
-                    Set-ADUser $ADUser -PasswordNeverExpires:$True
-                }
-            }
+        foreach ($User in $UserNamesList) {
+            $ADUser = $User.$UserNameColumnTitle
+            Disable-ADAccount -Identity $ADUser
+            Write-Host "Disabled $ADUser"
         }
     }
     End {

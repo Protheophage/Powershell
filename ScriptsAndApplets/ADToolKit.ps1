@@ -521,14 +521,14 @@ function Set-ADPasswordFromCSV {
     }
 }
 
-#Function to set pw expire flag
+#Function to set pw never expire flag
 function Set-PasswordNeverExpires {
     <#
     .SYNOPSIS
     Set AD Password Never Expires flag
 
     .DESCRIPTION
-    Set AD Password Never Expires flag. Either remove the flag from all accounts (default), or remove the flag for all accounts listed in a csv.
+    Set AD Password Never Expires flag. Either remove the flag from accounts (default), or set the flag for accounts. If no CSV path is provided to -CsvName this will run on all accounts.
 
     .PARAMETER CsvName
     Enter the path to a csv with the list of Sam Account Names.
@@ -571,9 +571,11 @@ function Set-PasswordNeverExpires {
     Process {
         if([string]::isnullorempty($CsvName)){
             if(!($SetEnable)){
+                Write-Host "Removing Password Never Expires flag for all users."
                 Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$False}
             }
             else{
+                Write-Host "Setting Password Never Expires flag for all users."
                 Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$True}
             }
         }
@@ -588,8 +590,132 @@ function Set-PasswordNeverExpires {
             else{
                 foreach ($User in $UserNamesList) {
                     $ADUser = $User.$UserNameColumnTitle
-                    Write-Host "Removing Password Never Expires flag for " $ADUser
+                    Write-Host "Setting Password Never Expires flag for " $ADUser
                     Set-ADUser $ADUser -PasswordNeverExpires:$True
+                }
+            }
+        }
+    }
+    End {
+        Stop-Transcript
+        Write-Host "The log file can be found at $WorkingDir\$LogFileName"
+    }
+}
+
+#Function to disable accounts from CSV
+function Disable-AdAccountFromCSV {
+    <#
+    .SYNOPSIS
+    Disable AD accounts listed in a CSV
+
+    .DESCRIPTION
+    Disable accounts listed by Sam Account Names in a CSV.
+
+    .PARAMETER CsvName
+    Enter the path to a csv with the list of Sam Account Names.
+    The default is to title the username column SamAccountName. This can be overidden with the UserNameColumnTitle parameter.
+    .PARAMETER ProjectFolder
+    The default is $env:SystemDrive\WorkDir
+    .PARAMETER UserNameColumnTitle
+    .PARAMETER LogFileName
+    Sets the length of the randomly generated password. The default is 14.
+
+    .EXAMPLE
+    Disable-AdAccountFromCSV -CsvName "C:\MyFolder\Users.csv"
+    Disables all accounts listed in Users.csv under the column titled SamAccountName
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true,
+        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [String]$CsvName,
+        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [String]$UserNameColumnTitle = "SamAccountName",
+        [String]$LogFileName = "DisabledUsers.log"
+    )
+    Begin {
+        $UserNamesList = Import-Csv -Path $CsvName
+        Import-Module ActiveDirectory
+        $WorkingDir = Set-ProjectFolder -baseDir $ProjectFolder
+        Start-Transcript -Path "$WorkingDir\$LogFileName" -Append
+    }
+    Process {
+        foreach ($User in $UserNamesList) {
+            $ADUser = $User.$UserNameColumnTitle
+            Disable-ADAccount -Identity $ADUser
+            Write-Host "Disabled $ADUser"
+        }
+    }
+    End {
+        Stop-Transcript
+        Write-Host "The log file can be found at $WorkingDir\$LogFileName"
+    }
+}
+
+#Function to set PW expire logon flag
+function Set-PwExpiresNextLogon {
+    <#
+    .SYNOPSIS
+    Set AD Password Expires at Next Logon flag
+
+    .DESCRIPTION
+    Set AD Password Expires at Next Logon flag. Either set the flag for accounts (default), or remove the flag for accounts. If no CSV path is provided to -CsvName this will run on all accounts.
+
+    .PARAMETER CsvName
+    Enter the path to a csv with the list of Sam Account Names.
+    The default is to title the username column SamAccountName. This can be overidden with the UserNameColumnTitle parameter.
+    .PARAMETER ProjectFolder
+    The default is $env:SystemDrive\WorkDir
+    .PARAMETER UserNameColumnTitle
+    .PARAMETER LogFileName
+    .PARAMETER SetDisable
+    Defualt is to enable (set the flag). Include this switch to disable instead.
+
+    .EXAMPLE
+    Set-PwExpiresNextLogon
+    Sets the password to expire at next logon for all AD accounts.
+
+    .EXAMPLE
+    Set-PwExpiresNextLogon -CsvName "C:\MyFolder\Users.csv"
+    Sets the password to expire at next logon for all accounts listed in a CSV.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [String]$CsvName,
+        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [String]$UserNameColumnTitle = "SamAccountName",
+        [String]$LogFileName = "PWExpiresNextLogon.log",
+        [Switch]$SetDisable
+    )
+    Begin {
+        $UserNamesList = Import-Csv -Path $CsvName
+        Import-Module ActiveDirectory
+        $WorkingDir = Set-ProjectFolder -baseDir $ProjectFolder
+        Start-Transcript -Path "$WorkingDir\$LogFileName" -Append
+    }
+    Process {
+        if([string]::isnullorempty($CsvName)){
+            if(!($SetDisable)){
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$True}
+            }
+            else{
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$False}
+            }
+        }
+        else{
+            if(!($SetDisable)){
+                foreach ($User in $UserNamesList) {
+                    $ADUser = $User.$UserNameColumnTitle
+                    Write-Host "Setting Password Expires at Next Logon flag for: " $ADUser
+                    Set-ADUser $ADUser -ChangePasswordAtLogon:$True
+                }
+            }
+            else{
+                foreach ($User in $UserNamesList) {
+                    $ADUser = $User.$UserNameColumnTitle
+                    Write-Host "Removing Password Expires at Next Logon flag for: " $ADUser
+                    Set-ADUser $ADUser -ChangePasswordAtLogon:$False
                 }
             }
         }
@@ -711,7 +837,7 @@ do {
             #Do the thing
             get-adgroupmember -Identity Administrators -Recursive | Select-Object name |foreach-object {Get-ADUser -filter "name -eq '$($_.name)'" -properties *} | select-object name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Export-CSV $outputFile
         }
-        #Set pw
+        #Set pw (Complete)
         3 {
             $PwCsvPath = Read-Host "Enter the path to the CSV with the list of SAM Account Names: "
             $CsvOrRand = Read-Host "Would you like to:
@@ -731,7 +857,7 @@ do {
                 }
             }
         }
-        #Remove pw no expire
+        #Remove pw no expire (Complete)
         4 {
             $AllOrCsv = Read-Host "Would you like to:
             1 - Remove the password never expires flag from all users
@@ -739,19 +865,20 @@ do {
             "
             switch ($AllOrCsv){
                 1 {
-                    Set-PasswordNeverExpires
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    Set-PasswordNeverExpires -ProjectFolder $UserSetDir
                 }
                 2 {
-                    $UserCsv = Read-Host "Enter the path to the CSV with the list of SAM Account Names: "
-                    Set-PasswordNeverExpires -CsvName $UserCsv
+                    $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\Workdir\Users.csv": '
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    Set-PasswordNeverExpires -CsvName $UserCsv -ProjectFolder $UserSetDir
                 }
                 default {
                     Write-Host "Please enter 1 for all users or 2 for users from CSV."
                 }
             }
         }
-        #Set pw expire (WIP)
-            <#Able to set for all users. Need to build funtion to set from csv#>
+        #Set pw expire (Complete)
         5 {
             $AllOrCsv = Read-Host "Would you like to:
             1 - Set the password to expire at next logon for all users
@@ -759,19 +886,24 @@ do {
             "
             switch ($AllOrCsv){
                 1 {
-                    Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$True}
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    Set-PwExpiresNextLogon -ProjectFolder $UserSetDir
                 }
                 2 {
-                    Write-Host "This function is coming soon"
+                    $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\Workdir\Users.csv": '
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    Set-PwExpiresNextLogon -CsvName $UserSetCSV -ProjectFolder $UserSetDir
                 }
                 default {
                     Write-Host "Please enter 1 or 2"
                 }
             }
         }
-        #Disable accounts (WIP)
+        #Disable accounts (Complete)
         6 {
-            Write-Host "This function is coming soon"
+            $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\Workdir\Users.csv": '
+            $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+            Disable-AdAccountFromCSV -CsvName $UserSetCSV -ProjectFolder $UserSetDir
         }
         #Set DNS (Complete)
         7 {
@@ -822,7 +954,7 @@ do {
 
             Read-Host -Prompt "Press any key to continue..."
         }
-        #Move FSMO roles
+        #Move FSMO roles (Complete)
         11 {
             #Ask the user to use this computer or not
             $UserSetPC = Read-Host "Enter the name of the computer to move roles to. Leave blank for this computer."
@@ -833,7 +965,11 @@ do {
                 Move-FSMO -DestServer $UserSetPC
             }
         }
+        99 {
+            Write-Host "Thank you for using the AD Toolkit."
+            Exit
+        }
         
-        default { Write-Output "Invalid choice. Please choose an option from 0 to 10, or 99." }
+        default { Write-Output "Invalid choice. Please choose an option from 0 to 11, or 99." }
     }
 } while ($userChoice -ne 99)

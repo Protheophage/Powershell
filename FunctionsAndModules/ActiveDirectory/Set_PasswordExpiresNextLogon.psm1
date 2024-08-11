@@ -1,10 +1,10 @@
-function Set-PasswordNeverExpires {
+function Set-PwExpiresNextLogon {
     <#
     .SYNOPSIS
-    Set AD Password Never Expires flag
+    Set AD Password Expires at Next Logon flag
 
     .DESCRIPTION
-    Set AD Password Never Expires flag. Either remove the flag from accounts (default), or set the flag for accounts. If no CSV path is provided to -CsvName this will run on all accounts.
+    Set AD Password Expires at Next Logon flag. Either set the flag for accounts (default), or remove the flag for accounts. If no CSV path is provided to -CsvName this will run on all accounts.
 
     .PARAMETER CsvName
     Enter the path to a csv with the list of Sam Account Names.
@@ -13,21 +13,16 @@ function Set-PasswordNeverExpires {
     The default is $env:SystemDrive\WorkDir
     .PARAMETER UserNameColumnTitle
     .PARAMETER LogFileName
-    .PARAMETER SetEnable
-    Defualt is to disable (remove the flag). Include this switch to enable pw ever expires instead.
+    .PARAMETER SetDisable
+    Defualt is to enable (set the flag). Include this switch to disable instead.
 
     .EXAMPLE
-    Set-PasswordNeverExpires
-    Removes the password never expires flag from all AD accounts.
+    Set-PwExpiresNextLogon
+    Sets the password to expire at next logon for all AD accounts.
 
     .EXAMPLE
-    Set-PasswordNeverExpires -CsvName "C:\MyFolder\Users.csv"
-    Removes the password never expires flag from all accounts listed in a CSV.
-
-    .EXAMPLE
-    Set-ADPasswordFromCSV -CsvName "C:\MyFolder\Users.csv" -SetEnable
-    Sets the Password Never Expires flag for all accounts listed in a CSV. Useful for service accounts.
-
+    Set-PwExpiresNextLogon -CsvName "C:\MyFolder\Users.csv"
+    Sets the password to expire at next logon for all accounts listed in a CSV.
     #>
     [CmdletBinding()]
     param (
@@ -35,8 +30,8 @@ function Set-PasswordNeverExpires {
         [String]$CsvName,
         [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
         [String]$UserNameColumnTitle = "SamAccountName",
-        [String]$LogFileName = "PwNeverExpires.log",
-        [Switch]$SetEnable
+        [String]$LogFileName = "PWExpiresNextLogon.log",
+        [Switch]$SetDisable
     )
     Begin {
         $UserNamesList = Import-Csv -Path $CsvName
@@ -46,28 +41,26 @@ function Set-PasswordNeverExpires {
     }
     Process {
         if([string]::isnullorempty($CsvName)){
-            if(!($SetEnable)){
-                Write-Host "Removing Password Never Expires flag for all users."
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$False}
+            if(!($SetDisable)){
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$True}
             }
             else{
-                Write-Host "Setting Password Never Expires flag for all users."
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$True}
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$False}
             }
         }
         else{
-            if(!($SetEnable)){
+            if(!($SetDisable)){
                 foreach ($User in $UserNamesList) {
                     $ADUser = $User.$UserNameColumnTitle
-                    Write-Host "Removing Password Never Expires flag for " $ADUser
-                    Set-ADUser $ADUser -PasswordNeverExpires:$False
+                    Write-Host "Setting Password Expires at Next Logon flag for: " $ADUser
+                    Set-ADUser $ADUser -ChangePasswordAtLogon:$True
                 }
             }
             else{
                 foreach ($User in $UserNamesList) {
                     $ADUser = $User.$UserNameColumnTitle
-                    Write-Host "Setting Password Never Expires flag for " $ADUser
-                    Set-ADUser $ADUser -PasswordNeverExpires:$True
+                    Write-Host "Removing Password Expires at Next Logon flag for: " $ADUser
+                    Set-ADUser $ADUser -ChangePasswordAtLogon:$False
                 }
             }
         }
