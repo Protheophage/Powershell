@@ -115,7 +115,7 @@ function Get-DomainName {
 [string]$HName = hostname
 [string]$domainName = Get-DomainName
 [string]$DateTime = (Get-Date).ToString("MMddyy_HHmm")
-[string]$outputFile = "$outputDir\$Hostname`_$baseFilename`_$DateTime.txt"
+[string]$outputFile = "$outputDir\$HName`_$baseFilename`_$DateTime.txt"
 
 #Generate the file
 New-Item -Path $outputFile -ItemType "file" -Force
