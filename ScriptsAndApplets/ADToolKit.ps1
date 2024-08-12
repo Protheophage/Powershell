@@ -106,7 +106,7 @@ function Get-DomainName {
     Process {
         try {
             $domainName = (Get-WmiObject Win32_ComputerSystem).Domain
-            if ($domainName -eq $null -or $domainName -eq '') {
+            if ($null -eq $domainName -or $domainName -eq '') {
                 throw "Domain name not found."
             }
             return $domainName
@@ -572,11 +572,11 @@ function Set-PasswordNeverExpires {
         if([string]::isnullorempty($CsvName)){
             if(!($SetEnable)){
                 Write-Host "Removing Password Never Expires flag for all users."
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$False}
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | ForEach-Object {Set-ADUser $_ -PasswordNeverExpires:$False}
             }
             else{
                 Write-Host "Setting Password Never Expires flag for all users."
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -PasswordNeverExpires:$True}
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | ForEach-Object {Set-ADUser $_ -PasswordNeverExpires:$True}
             }
         }
         else{
@@ -697,10 +697,10 @@ function Set-PwExpiresNextLogon {
     Process {
         if([string]::isnullorempty($CsvName)){
             if(!($SetDisable)){
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$True}
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | ForEach-Object {Set-ADUser $_ -ChangePasswordAtLogon:$True}
             }
             else{
-                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | % {Set-ADUser $_ -ChangePasswordAtLogon:$False}
+                Get-ADUser -Filter 'Name -like "*"' -Properties DisplayName | ForEach-Object {Set-ADUser $_ -ChangePasswordAtLogon:$False}
             }
         }
         else{
@@ -815,7 +815,7 @@ do {
             [string]$outputFile = "$outputDir\$domainName`_$baseFilename`_$DateTime.txt"
             
             #Do the thing
-            Get-ADUser -Filter 'enabled -eq $true' -properties name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Select name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Export-Csv $outputFile
+            Get-ADUser -Filter 'enabled -eq $true' -properties name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Select-Object name,SamAccountName,CanonicalName,created,lastlogondate,mail,passwordlastset,passwordneverexpires,enabled | Export-Csv $outputFile
         }
         #Pull Admins (Complete)
         2 {
