@@ -15,7 +15,8 @@ A toolkit of some common AD tasks
 9 - Search DHCP for activity related to an IP
 10 - Scan a network range for active IPs
 11 - Move FSMO roles to a different server
-12 - Perform a metadata cleanup (Remove a tomestoned or demoted DC)
+12 - Perform Metadata Cleanup (Remove demoted or tombstoned DC from AD)
+13 - Reset Kerberos password
 99 - Exit
 
 ToDo: Purge DNS gets most, but not all entries.  Especially struggles in domains with lots of sites
@@ -31,7 +32,7 @@ function Set-ProjectFolder {
     Create a project folder
 
     .DESCRIPTION
-    The default (with no parameters) is to create C:\WorkDir
+    The default (with no parameters) is to create C:\workdir
 
     .PARAMETER baseDir
     .PARAMETER taskDir
@@ -39,15 +40,15 @@ function Set-ProjectFolder {
 
     .EXAMPLE
     Set-ProjectFolder
-    Creates C:\WorkDir
+    Creates C:\workdir
 
     .EXAMPLE
     Set-ProjectFolder -taskDir "WorkWork" -changeDir
-    Creates C:\WorkDir\WorkWork and changes to that directory
+    Creates C:\workdir\WorkWork and changes to that directory
 
     .EXAMPLE
     $ProjectFolder = Set-ProjectFolder -taskDir "Work\Work"
-    Creates C:\WorkDir\Work\Work and assigns the path to the variable $ProjectFolder
+    Creates C:\workdir\Work\Work and assigns the path to the variable $ProjectFolder
 
     .EXAMPLE
     Set-ProjectFolder -baseDir "D:\WorkDir" -changeDir
@@ -56,7 +57,7 @@ function Set-ProjectFolder {
     #>
     [CmdletBinding()]
     param (
-        [string]$baseDir = "$env:SystemDrive\WorkDir",
+        [string]$baseDir = "$env:SystemDrive\workdir",
         [string]$taskDir,
         [switch]$changeDir
     )
@@ -160,7 +161,7 @@ function Get-DHCPLogInfo {
 }
 
 #Function to purge entry from DNS
-Function Purge-DNSEntries{
+Function Purge-DNSEntries {
     <#
     .SYNOPSIS
 	Purge DNS of stale entries
@@ -192,7 +193,9 @@ Function Purge-DNSEntries{
             $records = Get-DnsServerResourceRecord -ZoneName $Zone.ZoneName | Where-Object {
             $_.HostName -match "$PurgeThis" -or
             $_.RecordData.PtrDomainName -match "$PurgeThis" -or
-            $_.RecordData.NameServer -match "$PurgeThis"
+            $_.RecordData.NameServer -match "$PurgeThis" -or
+            $_.recorddata.HostNameAlias -match "$PurgeThis" -or
+            $_.recorddata.DomainName -match "$PurgeThis"
             }
 
             foreach ($record in $records) {
@@ -349,7 +352,7 @@ function Set-DNS {
 #Function to prompt the user
 function Prompt-User {
     # Prompt the user to choose an option
-    $choice = Read-Host "Choose an option
+    $choice = Read-Host 'Choose an option
     0 - Run some general health checks
     1 - Pull a list of all active users in AD or users with admin privileges
     2 - Pull a list of all computers or all domain controllers
@@ -362,9 +365,10 @@ function Prompt-User {
     9 - Search DHCP for activity related to an IP
     10 - Scan a network range for active IPs
     11 - Move FSMO roles to a different server
-    12 - Perform a metadata cleanup (Remove a tomestoned or demoted DC)
+    12 - Perform a metadata cleanup (Remove a demoted or tombstoned DC from AD)
+    13 - Reset Kerberos Password
     99 - Exit
-    "
+    '
     return $choice
 }
 
@@ -378,6 +382,7 @@ function Move-FSMO {
     Moves FSMO roles to selected computer
 
     .PARAMETER DestDir
+    .PARAMETER Force
 
     .EXAMPLE
     Move-FSMO
@@ -394,7 +399,8 @@ function Move-FSMO {
 
     [CmdletBinding()]
     Param (
-    [string]$DestServer
+    [string]$DestServer,
+    [switch]$Force
     )
     Begin {
         if ([string]::isnullorempty($DestServer)) {
@@ -402,7 +408,23 @@ function Move-FSMO {
         }
     }
     Process {
-        Move-ADDirectoryServerOperationMasterRole -Identity $DestServer -OperationMasterRole DomainNamingMaster,InfrastructureMaster,PDCEmulator,RIDMaster,SchemaMaster
+        If(!($Force)){
+            Move-ADDirectoryServerOperationMasterRole -Identity $DestServer -OperationMasterRole DomainNamingMaster,InfrastructureMaster,PDCEmulator,RIDMaster,SchemaMaster
+        }
+        Else{
+            Move-ADDirectoryServerOperationMasterRole -Identity $DestServer -OperationMasterRole DomainNamingMaster,InfrastructureMaster,PDCEmulator,RIDMaster,SchemaMaster -Force
+        }
+    }
+    End {
+        $FSMO = New-Object PSObject -Property @{
+            SchemaMaster = (Get-ADForest).SchemaMaster
+            DomainNamingMaster = (Get-ADForest).DomainNamingMaster
+            PDCEmulator = (Get-ADDomain).PDCEmulator
+            RIDMaster = (Get-ADDomain).RIDMaster
+            InfrastructureMaster = (Get-ADDomain).InfrastructureMaster
+        }
+        $FSMO
+        Return $FSMO
     }
 }
 
@@ -457,7 +479,7 @@ function Set-ADPasswordFromCSV {
     Enter the path to a csv with the list of Sam Account Names, and passwords if applicable.
     The default is to title the username column SamAccountName and the passwords column Password. This can be overidden with the UserNameColumnTitle, and PwColumnTitle parameters.
     .PARAMETER ProjectFolder
-    The default is $env:SystemDrive\WorkDir
+    The default is $env:SystemDrive\workdir
     .PARAMETER PwFromCSV
     A switch to determine if the passwords should be generated or provided in the CSV.
     If the switch is enabled a Password column must be included in the CSV.
@@ -483,9 +505,9 @@ function Set-ADPasswordFromCSV {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true,
-        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\workdir\Users.csv"')]
         [String]$CsvName,
-        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [String]$ProjectFolder = "$env:SystemDrive\workdir",
         [Switch]$PwFromCSV,
         [String]$UserNameColumnTitle = "SamAccountName",
         [String]$PwColumnTitle = "Password",
@@ -537,7 +559,7 @@ function Set-PasswordNeverExpires {
     Enter the path to a csv with the list of Sam Account Names.
     The default is to title the username column SamAccountName. This can be overidden with the UserNameColumnTitle parameter.
     .PARAMETER ProjectFolder
-    The default is $env:SystemDrive\WorkDir
+    The default is $env:SystemDrive\workdir
     .PARAMETER UserNameColumnTitle
     .PARAMETER LogFileName
     .PARAMETER SetEnable
@@ -558,9 +580,9 @@ function Set-PasswordNeverExpires {
     #>
     [CmdletBinding()]
     param (
-        [Parameter(HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [Parameter(HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\workdir\Users.csv"')]
         [String]$CsvName,
-        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [String]$ProjectFolder = "$env:SystemDrive\workdir",
         [String]$UserNameColumnTitle = "SamAccountName",
         [String]$LogFileName = "PwNeverExpires.log",
         [Switch]$SetEnable
@@ -618,7 +640,7 @@ function Disable-AdAccountFromCSV {
     Enter the path to a csv with the list of Sam Account Names.
     The default is to title the username column SamAccountName. This can be overidden with the UserNameColumnTitle parameter.
     .PARAMETER ProjectFolder
-    The default is $env:SystemDrive\WorkDir
+    The default is $env:SystemDrive\workdir
     .PARAMETER UserNameColumnTitle
     .PARAMETER LogFileName
     Sets the length of the randomly generated password. The default is 14.
@@ -630,9 +652,9 @@ function Disable-AdAccountFromCSV {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true,
-        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\workdir\Users.csv"')]
         [String]$CsvName,
-        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [String]$ProjectFolder = "$env:SystemDrive\workdir",
         [String]$UserNameColumnTitle = "SamAccountName",
         [String]$LogFileName = "DisabledUsers.log"
     )
@@ -668,7 +690,7 @@ function Set-PwExpiresNextLogon {
     Enter the path to a csv with the list of Sam Account Names.
     The default is to title the username column SamAccountName. This can be overidden with the UserNameColumnTitle parameter.
     .PARAMETER ProjectFolder
-    The default is $env:SystemDrive\WorkDir
+    The default is $env:SystemDrive\workdir
     .PARAMETER UserNameColumnTitle
     .PARAMETER LogFileName
     .PARAMETER SetDisable
@@ -684,9 +706,9 @@ function Set-PwExpiresNextLogon {
     #>
     [CmdletBinding()]
     param (
-        [Parameter(HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\WorkDir\Users.csv"')]
+        [Parameter(HelpMessage='Enter the path to the CSV with the list of users. Such as "C:\workdir\Users.csv"')]
         [String]$CsvName,
-        [String]$ProjectFolder = "$env:SystemDrive\WorkDir",
+        [String]$ProjectFolder = "$env:SystemDrive\workdir",
         [String]$UserNameColumnTitle = "SamAccountName",
         [String]$LogFileName = "PWExpiresNextLogon.log",
         [Switch]$SetDisable
@@ -729,6 +751,7 @@ function Set-PwExpiresNextLogon {
     }
 }
 
+#Funtion to do Metadata cleanup
 Function Invoke-MetaDataCleanup{
     <#
     .SYNOPSIS
@@ -757,9 +780,8 @@ Function Invoke-MetaDataCleanup{
         #Get all AD Sites
         $AllADSites = Get-ADReplicationSite -Filter "*"
 
-
-        #Formulate the FQDN of the former and new DC
-        $DCToRemoveFQDN = "$($ADDCNameToRemove).$($FullyQualifiedDomainName)"
+        #Formulate the FQDN of the DC
+        #$DCToRemoveFQDN = "$($ADDCNameToRemove).$($FullyQualifiedDomainName)"
     }
     Process {
         :AllADSites Foreach ($AdSite in $AllADSites) {
@@ -841,7 +863,7 @@ do {
         #Health checks (Complete)
         0 {
             #Ask the user to use default workdir or not
-            $UserSetDir = Read-Host -Prompt "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
+            $UserSetDir = Read-Host -Prompt "Enter the path you want to use for the working directory. Leave blank to use the default C:\workdir\"
             if ([string]::isnullorempty($UserSetDir)){
                 [string]$outputDir = Set-ProjectFolder
             }
@@ -860,7 +882,11 @@ do {
             # Run the commands and write the output to the file
             Write-Host "Getting FSMO roles"
             Add-Content -Path $outputFile -Value "-----FSMO START-----"
-            netdom query fsmo | Add-Content -Path $outputFile
+            Write-OutPut "Schema Master : $((Get-ADForest).SchemaMaster)" | Add-Content -Path $outputFile
+            Write-OutPut "Domain Naming Master : $((Get-ADForest).DomainNamingMaster)" | Add-Content -Path $outputFile
+            Write-OutPut "PDC Emulator : $((Get-ADDomain).PDCEmulator)" | Add-Content -Path $outputFile
+            Write-OutPut "RID Master : $((Get-ADDomain).RIDMaster)" | Add-Content -Path $outputFile
+            Write-OutPut "Infrastructure Master : $((Get-ADDomain).InfrastructureMaster)" | Add-Content -Path $outputFile
             Add-Content -Path $outputFile -Value "-----FSMO END-----"
 
             Write-Host "Running RepAdmin /showrepl"
@@ -884,7 +910,7 @@ do {
         #Pull users (Complete)
         1 {
             #Ask the user to use default workdir or not
-            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
+            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\workdir\"
             $UserSetDir = Read-Host
             if ([string]::isnullorempty($UserSetDir)){
                 [string]$outputDir = Set-ProjectFolder
@@ -922,7 +948,7 @@ do {
         #Pull computers (Complete)
         2 {
             #Ask the user to use default workdir or not
-            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\WorkDir\"
+            Write-Host "Enter the path you want to use for the working directory. Leave blank to use the default C:\workdir\"
             $UserSetDir = Read-Host
             if ([string]::isnullorempty($UserSetDir)){
                 [string]$outputDir = Set-ProjectFolder
@@ -987,12 +1013,12 @@ do {
             "
             switch ($AllOrCsv){
                 1 {
-                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\workdir\": '
                     Set-PasswordNeverExpires -ProjectFolder $UserSetDir
                 }
                 2 {
-                    $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\Workdir\Users.csv": '
-                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\workdir\Users.csv": '
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\workdir\": '
                     Set-PasswordNeverExpires -CsvName $UserCsv -ProjectFolder $UserSetDir
                 }
                 default {
@@ -1008,12 +1034,12 @@ do {
             "
             switch ($AllOrCsv){
                 1 {
-                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\workdir\": '
                     Set-PwExpiresNextLogon -ProjectFolder $UserSetDir
                 }
                 2 {
-                    $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\Workdir\Users.csv": '
-                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+                    $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\workdir\Users.csv": '
+                    $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\workdir\": '
                     Set-PwExpiresNextLogon -CsvName $UserSetCSV -ProjectFolder $UserSetDir
                 }
                 default {
@@ -1023,8 +1049,8 @@ do {
         }
         #Disable accounts (Complete)
         6 {
-            $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\Workdir\Users.csv": '
-            $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\WorkDir\": '
+            $UserSetCSV = Read-Host 'Enter the path to the CSV with the list of SAM Account Names. i.e. "C:\workdir\Users.csv": '
+            $UserSetDir = Read-Host 'Enter the path for the working directory. i.e. "C:\workdir\": '
             Disable-AdAccountFromCSV -CsvName $UserSetCSV -ProjectFolder $UserSetDir
         }
         #Set DNS (Complete)
@@ -1088,8 +1114,15 @@ do {
             }
         }
         12 {
-            $DCtoRmv = Read-Host "Enter the name of the domain controller you want to perform a metadata cleanup for: "
-            Invoke-MetaDataCleanup -DcToRemove $DCtoRmv
+            $DcToRmv = Read-Host "Enter the name of the Domain Controller you would like to perform a metadata cleanup for.  NOTE: This can NOT be undone. : "
+            Invoke-MetaDataCleanup -DcToRemove $DcToRemove
+        }
+        13{
+            $ADUser = "krbtgt"
+            $ADPW = Get-RandomString
+            $password = ConvertTo-SecureString -AsPlainText $ADPW -force
+            Write-Host "Setting Password for " $ADUser " to " $ADPW
+            Set-ADAccountPassword $ADUser -NewPassword $password -Reset
         }
         99 {
             Write-Host "Thank you for using the AD Toolkit."
