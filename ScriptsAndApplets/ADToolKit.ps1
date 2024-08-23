@@ -774,7 +774,7 @@ Function Invoke-MetaDataCleanup{
     )
     Begin {
         #Gather Domain info
-        $FullyQualifiedDomainName = (Get-ADDomain).DNSRoot
+        #$FullyQualifiedDomainName = (Get-ADDomain).DNSRoot
         $DomainDistinguishedName = (Get-ADDomain).DistinguishedName
 
         #Get all AD Sites
