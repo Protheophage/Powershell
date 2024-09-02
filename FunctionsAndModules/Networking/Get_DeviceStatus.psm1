@@ -22,7 +22,7 @@ function Get-DeviceStatus {
     [CmdletBinding()]
     param (
         [string[]]$deviceName,
-        [switch]$OutTable
+        [switch]$NoOutTable
     )
     Process {
         $results = foreach ($name in $deviceName) {
@@ -44,7 +44,7 @@ function Get-DeviceStatus {
         }
     }
     End {
-        if ($OutTable) {
+        if (!($NoOutTable)) {
             $results | Format-Table -AutoSize
         }
     }
