@@ -1,24 +1,33 @@
 #####################Help and Discovery##################### 
-Update-Help
-Updates the help files for PowerShell modules on your computer
+    Update-Help
+        #Updates the help files for PowerShell modules on your computer
 
-Get-Help
-Displays help about PowerShell cmdlets and concepts
-    Get-help Get-*
-        Lists all cmdlets that begin with "Get-"
+    Get-Help
+        #Displays help about PowerShell cmdlets and concepts
+            Get-help Get-*
+                #Lists all cmdlets that begin with "Get-"
 
-Get-Command
-Gets all commands that are installed on the computer
-    Get-Command -Noun *event* 
-            returns a list of cmdlets dealing with events; the -Noun parameter filters the results to cmdlets with "event" in their name
-    Get-Command -Verb Get 
-        returns all cmdlets capable of retrieving things; the -Verb parameter filters the results to cmdlets with "Get" in their name
+    Get-Command
+        #Gets all commands that are installed on the computer
+            Get-Command -Noun *event* 
+                    #returns a list of cmdlets dealing with events; the -Noun parameter filters the results to cmdlets with "event" in their name
+            Get-Command -Verb Get 
+                #returns all cmdlets capable of retrieving things; the -Verb parameter filters the results to cmdlets with "Get" in their name
 
-Get-Process
-Gets the processes that are running on the local computer
+    Get-Process
+        #Gets the processes that are running on the local computer
 
-Get-Verb
-Displays a list of approved verbs that can be used in cmdlet names
+    Get-Verb
+        #Displays a list of approved verbs that can be used in cmdlet names
+
+    Get-PSProvider
+        #Displays information about the providers that are available in the current session
+    
+    Get-ChildItem env:* 
+        #Lists all environment variables
+    
+    Set-Item -Path Env:MyVariable -Value "MyValue" 
+        #Sets an environment variable
 
 #####################PS Modules#####################
 
@@ -160,7 +169,7 @@ Displays a list of approved verbs that can be used in cmdlet names
 
 #####################PS Module Creation#####################
     #Make a module manifest
-        New-ModuleManifest -Path "C:\VSCode\Repositories\Powershell\ActiveDirectory\Purge-DNSEntries.psd1" -RootModule "Purge-DNSEntries.psm1" -ModuleVersion "1.0" -Author "Colby Connolly"
+        New-ModuleManifest -Path "D:\VsCode\Powershell\FunctionsAndModules\RandomUtilities\Get_UninstallString.psd1" -RootModule "Get_UninstallString.psm1" -ModuleVersion "1.0" -Author "Colby Connolly"
 
 #####################11 Common Parameters#####################
     -Verbose
