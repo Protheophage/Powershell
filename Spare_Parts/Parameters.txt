@@ -1,4 +1,4 @@
-##Parameter Type Validation
+##Set Parameter Type
 [string] # A simple string in single or double quotes
 [string[]] # An array of strings (to accept multiple values)
 [int] # Whole numbers without decimals

@@ -1,0 +1,100 @@
+#Error Handling
+    Try # to do something (Code that may throw an error)
+    Catch # the error and handle it
+    Throw # Throws a terminating error
+    Finally # cleanup code that will always run
+        Example:
+            try {
+                Get-Item "C:\NonexistentPath"
+            } catch {
+                Write-Host "An error occurred: $_"
+            } finally {
+                Write-Host "This code always runs"
+            }
+        Example:
+            if ($null -eq $null) {
+                throw "An error occurred"
+            }
+
+#Validation
+    $?
+        #Contains the success or failure status of the last operation $true if the last operation succeeded, $false if it failed
+            Example:
+                Get-Item "C:\NonexistentPath"
+                if (-not $?) {
+                    Write-Host "The last operation failed."
+                }
+
+    #Parameter value validation
+        [ValidateRange(1, 100)] # Validates a range of numbers
+        [ValidateLength(1, 10)] # Validates the lengths of a string parameter
+        [ValidatePattern(“[A-Za-z]+”)] # Validate a values against a regular expression pattern
+        [ValidateNotNullOrEmpty()] # Ensure that a parameter is not null or empty
+        [ValidateScript({ $_ -gt 0 })] # Validate a parameter using a custom script block
+        [AllowNull()] # Allows a null value to be passed to the parameter
+        [AllowEmptyString()] # Allows an empty string to be passed to the parameter
+        [AllowEmptyCollection()] # Allows an empty collection to be passed to the parameter
+
+        Example:
+            function Get-ValidIP {
+                param(
+                    [ValidateScript({
+                        if ($_ -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
+                            $true
+                        } else {
+                            throw "Please enter a valid IP address"
+                        }
+                    })]
+                    [string]$IPAddress
+                )
+                Write-Host "The IP address is $IPAddress"
+            }
+        Example:
+            function ExampleFunction {
+                param (
+                    [ValidateNotNullOrEmpty()]
+                    [string]$Name
+                )
+                Write-Host "Hello, $Name"
+            }
+
+Flags on cmdlets
+    ErrorAction
+        Specifies how the command should respond to errors
+        Values: SilentlyContinue, Stop, Continue, Ignore, Inquire
+        Example:
+            Get-Item "C:\NonexistentPath" -ErrorAction SilentlyContinue
+
+    ErrorVariable
+        Stores error messages in a specified variable for later use
+        Example:
+            Get-Item "C:\NonexistentPath" -ErrorVariable MyError
+            Write-Host "The error was: $MyError"
+
+
+Error and Message Streams
+    Write-Error
+        Writes an error message to the error stream
+        Example:
+            Write-Error "An error occurred"
+
+    Write-Warning
+        Writes a warning message to the warning stream
+        Example:
+            Write-Warning "A warning occurred"
+
+    Write-Verbose
+        Writes a verbose message to the verbose stream
+        Example:
+            Write-Verbose "A verbose message"
+
+    Write-Debug
+        Writes a debug message to the debug stream
+        Example:
+            Write-Debug "A debug message"
+
+    $Error
+        Contains an array of error objects that represent the most recent errors
+        Example:
+            Get-Item "C:\NonexistentPath"
+            $Error[0]
