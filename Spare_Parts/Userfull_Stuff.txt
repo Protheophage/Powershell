@@ -29,6 +29,37 @@
     Set-Item -Path Env:MyVariable -Value "MyValue" 
         #Sets an environment variable
 
+#####################Format Conversion and File Export#####################
+    Convert
+        ConvertTo-Csv
+            #Converts objects into a series of CSV strings
+                Get-Process | ConvertTo-Csv -NoTypeInformation | Out-File -FilePath C:\FT\Processes.csv
+            
+        ConvertTo-Html
+            #Converts objects into a series of HTML strings
+                Get-Process | ConvertTo-Html | Out-File -FilePath C:\FT\Processes.html
+
+        ConvertTo-Json
+            #Converts objects into a series of JSON strings
+                Get-Process | ConvertTo-Json | Out-File -FilePath C:\FT\Processes.json
+
+        ConvertTo-Xml
+            #Converts objects into a series of XML strings
+                Get-Process | ConvertTo-Xml | Out-File -FilePath C:\FT\Processes.xml
+
+    Export
+        Export-Csv
+            #Converts objects into a series of CSV strings and saves them to a file
+                Get-Process | Export-Csv -Path C:\FT\Processes.csv -NoTypeInformation
+            
+        Export-Clixml
+            #Converts objects into a series of XML strings and saves them to a file
+                Get-Process | Export-Clixml -Path C:\FT\Processes.xml
+
+        Out-File
+            #Saves the output of a command to a file
+                Get-Process | Out-File -FilePath C:\FT\Processes.txt
+
 #####################PS Modules#####################
 
     PowerShell Full Documentation
@@ -169,7 +200,7 @@
 
 #####################PS Module Creation#####################
     #Make a module manifest
-        New-ModuleManifest -Path "D:\VsCode\Powershell\FunctionsAndModules\RandomUtilities\Get_UninstallString.psd1" -RootModule "Get_UninstallString.psm1" -ModuleVersion "1.0" -Author "Colby Connolly"
+        New-ModuleManifest -Path "D:\VsCode\Powershell\FunctionsAndModules\Install_AppFromWeb.psd1" -RootModule "Install_AppFromWeb.psm1" -ModuleVersion "1.0" -Author "Colby Connolly"
 
 #####################11 Common Parameters#####################
     -Verbose
