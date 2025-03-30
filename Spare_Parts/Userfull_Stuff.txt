@@ -29,6 +29,59 @@
     Set-Item -Path Env:MyVariable -Value "MyValue" 
         #Sets an environment variable
 
+#####################Properties#####################
+    Get-Member
+        #Gets the properties and methods of objects
+            Get-Process | Get-Member
+                #Lists all properties and methods of the process object
+
+    Select-Object
+        #Selects specific properties of an object
+            Get-Process | Select-Object -Property Name,Id,Path
+                #Lists the name, ID, and path of all processes
+
+    Sort-Object
+        #Sorts objects by property values
+            Get-Process | Sort-Object -Property CPU -Descending
+                #Lists all processes sorted by CPU usage in descending order
+
+    Where-Object
+        #Filters objects based on specified criteria
+            Get-Process | Where-Object {$_.CPU -gt 100}
+                #Lists all processes using more than 100 CPU
+
+    Group-Object
+        #Groups objects by property values
+            Get-Process | Group-Object -Property Name
+                #Groups all processes by their name
+
+    Add-Member
+        #Adds a property or method to an object
+            $process = Get-Process | Select-Object -First 1
+            $process | Add-Member -MemberType NoteProperty -Name "NewProperty" -Value "NewValue"
+                #Adds a new property called "NewProperty" with the value "NewValue" to the first process object
+
+#####################Formatting Output#####################
+    Format-List
+        #Formats the output as a list
+            Get-Process | Format-List -Property Name,Id,Path
+                #Lists the name, ID, and path of all processes in a list format
+
+    Format-Table
+        #Formats the output as a table
+            Get-Process | Format-Table -Property Name,Id,Path -AutoSize
+                #Lists the name, ID, and path of all processes in a table format with auto-sized columns
+
+    Out-GridView
+        #Displays the output in a grid view window
+            Get-Process | Out-GridView -Title "Processes"
+                #Displays all processes in a grid view window with the title "Processes"
+
+    Format-Wide
+        #Formats the output in a wide format
+            Get-Process | Format-Wide -Property Name -Column 3
+                #Lists the names of all processes in a wide format with 3 columns
+
 #####################Format Conversion and File Export#####################
     Convert
         ConvertTo-Csv
@@ -61,118 +114,16 @@
                 Get-Process | Out-File -FilePath C:\FT\Processes.txt
 
 #####################PS Modules#####################
-
-    PowerShell Full Documentation
-        https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/?view=powershell-7.3
+    Get-Module
+        #Get all modules that are currently loaded in the session
 
     Install-Module
-        #Install a new module
-            Install-Module -Name <Module_Name>
+        #Install a module from the PowerShell Gallery
+            Install-Module -Name <ModuleName> -Scope CurrentUser -Force -AllowClobber
 
-    ExchangeOnlineManagement
-        
-        Connect-ExchangeOnline 
-            #Connect to Exchange Online through Powershell
-
-        Get-EXOMailbox
-            #Get details of a mailbox
-                Get-EXOMailbox john@contoso.com
-
-        Add-MailboxFolderPermission
-            #Add folder permissions such as calendar permissions
-                Add-MailboxFolderPermission -Identity ayla@contoso.com:\Calendar -User ed@contoso.com -AccessRights Editor
-
-        Set-MailboxFolderPermission
-            #Set folder permissions such as calendar permissions
-                Set-MailboxFolderPermission -Identity ayla@contoso.com:\Calendar -User ed@contoso.com -AccessRights Editor
-
-        Get-Mailbox
-            #Get any mailboxes with forwarding
-                Get-Mailbox -Filter {ForwardingAddress -ne $null} | select UserPrincipalName,ForwardingSmtpAddress,DeliverToMailboxAndForward
-
-        Get-MailboxFolderPermission
-            Get-MailboxFolderPermission -Identity <Email-Address>:\Calendar
-
-        Add-MailboxFolderPermission
-            Add-MailboxFolderPermission -Identity <Email-Address>:\Calendar -User <2nd-email-Address> -AccessRights editor
-
-        Enable-Mailbox
-            #Enable Archive Auto Expansion for user
-                Enable-Mailbox <user mailbox> -AutoExpandingArchive
-
-    Get-CimInstance
-        #Get info on BIOS
-            get-ciminstance win32_bios
-
-    AzureAD
-        #Import AzureAD and Get commands for module
-            Impot-Module AzureAD
-            Get-Command -Module AzureAD
-        
-        Connect-AzureAD
-            #Connect to AAD
-                
-
-    ActiveDirectory
-        Get-ADUser
-            #Get all properties of all users
-                Get-ADUser -Filter *
-
-            #Get the attributes of a user
-                get-aduser -Identity <userName> -properties *
-
-            #Get the Password Last Set date
-                Get-ADUser -Identity <Username> -properties PwdLastSet | sort Name | ft Name,@{Name='PwdLastSet';Expression={[DateTime]::FromFileTime($_.PwdLastSet)}}
-
-        Set-ADUser
-            #Add email alias (SMTP for primary smtp for secondary)
-                Set-ADUser -identity <userName> -Add @{Proxyaddresses="SMTP:<userName>@<Domain >.com"}
-            
-            #Remove email alias
-                Set-ADUser -identity <userName> -Remove @{Proxyaddresses="SMTP:<userName>@<Domain >.com"}
-
-        Get-ADDomainController
-            #Get information on domain and domain controller
-                Get-ADDomainController -Discover -Service PrimaryDC
-
-    GroupPolicy
-        Get-GPOReport
-            #Generate a report of all group policy objects
-                $dc = Get-ADDomainController -Discover -Service PrimaryDC
-
-                Get-GPOReport -All -Domain $dc.domain -Server $dc.Name -ReportType HTML -Path C:\FT\GPOReport.html
-        
-    MSOnline
-        Connect-MsolService
-            #Connect to clients MSOnline
-   
-    ADSync
-        Get-ADSyncScheduler    
-            #Get the sync schedule
-        
-        Start-ADSyncSyncCycle
-            #Force a sync of just recent changes
-                Start-ADSyncSyncCycle -PolicyType Delta
-
-    MFA Broker troubleshooting
-        Get-AppxPackage Microsoft.AAD.BrokerPlugin
-
-        if (-not (Get-AppxPackage Microsoft.AAD.BrokerPlugin)) { Add-AppxPackage -Register "$env:windir\SystemApps\Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy\Appxmanifest.xml" -DisableDevelopmentMode -ForceApplicationShutdown } Get-AppxPackage Microsoft.AAD.BrokerPlugin
-
-    PSWindowsUpdate
-        #Install PSWindowsUpdate
-            Install-Module -Confirm:$false PSWindowsUpdate -Force
-            
-        #Update windows through Windows Update Service, accept all prompts, force download, install, and don't reboot - Does not interupt user
-            get-windowsupdate -AcceptAll -Install -IgnoreReboot -ForceDownload -MicrosoftUpdate
-    
-    Get-Package
-        #Get list of installed packages (applications)
-            Get-Package -Provider Programs -IncludeWindowsInstaller -ErrorAction SilentlyContinue -Name *
-
-    Uninstall-Package
-        #Uninstall a package (application)
-            Get-Package -Provider Programs -IncludeWindowsInstaller -ErrorAction SilentlyContinue -Name "sentinel *" | uninstall-package -force
+    New-ModuleManifest
+        #Create a module manifest file for a module
+            New-ModuleManifest -Path "D:\VsCode\Powershell\FunctionsAndModules\Install_AppFromWeb.psd1" -RootModule "Install_AppFromWeb.psm1" -ModuleVersion "1.0" -Author "Colby Connolly" -Description "Module to install applications from the web"
 
     Winget
         #Install Winget
@@ -197,10 +148,6 @@
             winget upgrade <app.name>
                 i.e. winget upgrade microsoft.office
                     #Note: the app name can be found with winget show
-
-#####################PS Module Creation#####################
-    #Make a module manifest
-        New-ModuleManifest -Path "D:\VsCode\Powershell\FunctionsAndModules\Install_AppFromWeb.psd1" -RootModule "Install_AppFromWeb.psm1" -ModuleVersion "1.0" -Author "Colby Connolly"
 
 #####################11 Common Parameters#####################
     -Verbose
