@@ -7,6 +7,7 @@ function Verb-Name {
     Enter Description Here
 
     .PARAMETER Param1
+    Description of parameter here
 
     .EXAMPLE
     Example here
