@@ -200,7 +200,7 @@
 
     New-ModuleManifest
         # Create a module manifest file for a module
-            New-ModuleManifest -Path "D:\VsCode\Powershell\FunctionsAndModules\Investigation_Tools\Get_ServicesByStartTime.psd1" -RootModule "Get_ServicesByStartTime.psm1" -ModuleVersion "1.0" -Author "Colby Connolly" -Description "Module to install applications from the web"
+            New-ModuleManifest -Path "D:\VsCode\Powershell\FunctionsAndModules\Investigation_Tools\Get_EventLogByTimeRange.psd1" -RootModule "Get_EventLogByTimeRange.psm1" -ModuleVersion "1.0" -Author "Colby Connolly" -Description "Retrieves Windows Event Logs within a specified time range."
 #endregion
 #region Common Parameters
     # Purpose: Common parameters available in most PowerShell cmdlets.
