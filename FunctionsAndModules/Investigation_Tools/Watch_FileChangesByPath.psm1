@@ -1,4 +1,4 @@
-function Get-FileChangesByPath {
+function Watch-FileChangesByPath {
     <#
     .SYNOPSIS
     Monitors and retrieves file changes in a specified directory, including subdirectories.
@@ -11,11 +11,11 @@ function Get-FileChangesByPath {
     The directory path to monitor. This must be a valid and accessible directory.
 
     .EXAMPLE
-    Get-FileChangesByPath -Path "C:\Temp"
+    Watch-FileChangesByPath -Path "C:\Temp"
     Monitors file changes in the C:\Temp directory and its subdirectories. Outputs events such as file creation, modification, deletion, and renaming.
 
     .EXAMPLE
-    Get-FileChangesByPath -Path "D:\Projects"
+    Watch-FileChangesByPath -Path "D:\Projects"
     Monitors file changes in the D:\Projects directory. Useful for tracking changes in project files during development.
 
     .NOTES
