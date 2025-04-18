@@ -30,6 +30,7 @@ function Uninstall-WithUninstallString {
                     Get-ItemProperty -LiteralPath $_.PsPath | ForEach-Object { 
                         if ($_.DisplayName -match $AppName) { 
                             $UninstallString = $_.UninstallString
+                            $DisplayName = $_.DisplayName
                             if ($UninstallString) {
                                 try {
                                     if ($UninstallString -match 'msiexec') {
@@ -56,7 +57,7 @@ function Uninstall-WithUninstallString {
                                                     Write-Output "Silent flag $Flag caused the process to hang and was terminated. Trying next flag."
                                                     continue
                                                 }
-                                                Write-Output "Silent uninstallation process completed for $AppName using flag: $Flag."
+                                                Write-Output "Silent uninstallation process completed for $DisplayName using flag: $Flag."
                                                 $SilentSuccess = $true
                                                 break
                                             } catch {
@@ -67,7 +68,7 @@ function Uninstall-WithUninstallString {
                                             Write-Output "Common silent uninstall flags did not work. Please try uninstalling interactively."
                                         }
                                     }
-                                    Write-Output "Silent uninstallation process completed for $AppName."
+                                    Write-Output "Silent uninstallation process completed for $DisplayName."
                                 } catch {
                                     Write-Output "Error during uninstallation: $_"
                                 }

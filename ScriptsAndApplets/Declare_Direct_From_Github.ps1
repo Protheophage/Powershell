@@ -51,5 +51,6 @@ catch {
 ##>
 
 <##Runs this script to declare all of the above functions from GitHub.
+#You can run this direct in PS, or you can add it to your $PROFILE or $PROFILE.AllUsersAllHosts to have it run every time you open a new PS window.
 (new-object Net.WebClient).DownloadString("https://raw.githubusercontent.com/Protheophage/Powershell/refs/heads/main/ScriptsAndApplets/Declare_Direct_From_Github.ps1") | Invoke-Expression 
 ##>
